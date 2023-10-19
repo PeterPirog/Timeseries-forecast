@@ -54,12 +54,18 @@ class ClimateTimeSeries:
 
     def plot_data(self, data=None):
         data = data or self.dataframe
-        fig, axes = plt.subplots(nrows=len(data.columns), sharex=True, figsize=(10, 15))
 
-        for i, column in enumerate(data.columns):
-            axes[i].plot(data.index, data[column], label=column)
-            axes[i].set_title(column)
-            axes[i].legend()
+        if len(data.columns) == 1:  # Only one subplot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.plot(data.index, data[data.columns[0]], label=data.columns[0])
+            ax.set_title(data.columns[0])
+            ax.legend()
+        else:  # Multiple subplots
+            fig, axes = plt.subplots(nrows=len(data.columns), sharex=True, figsize=(10, 15))
+            for i, column in enumerate(data.columns):
+                axes[i].plot(data.index, data[column], label=column)
+                axes[i].set_title(column)
+                axes[i].legend()
 
         plt.tight_layout()
         plt.show()

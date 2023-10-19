@@ -1,46 +1,43 @@
-# also load: _hourly, _monthly, _weekly, _yearly, or _live_daily
-from autots import AutoTS, load_daily
+from autots import AutoTS
+from tools.timedata import ClimateTimeSeries
 
 import warnings
 warnings.filterwarnings('ignore')
 
-# sample datasets can be used in either of the long or wide import shapes
-long = False
-df = load_daily(long=long)
+# Load climate data
+climate_data = ClimateTimeSeries(resample_frequency='1H', samples=24*31, selected_parameters=[1, 2, 5])
+df = climate_data.dataframe
+print(df)
 
+# Configure and fit the AutoTS model
 model = AutoTS(
-    forecast_length=21,
+    forecast_length=24,
     frequency='infer',
     prediction_interval=0.9,
     ensemble='auto',
-    model_list="fast",  # "superfast", "default", "fast_parallel"
-    transformer_list="fast",  # "superfast",
+    model_list="fast",
+    transformer_list="fast",
     drop_most_recent=1,
     max_generations=4,
     num_validations=2,
     validation_method="backwards"
 )
-model = model.fit(
-    df,
-    date_col='datetime' if long else None,
-    value_col='value' if long else None,
-    id_col='series_id' if long else None,
-)
 
+model = model.fit(df)
+
+# Predict using the model
 prediction = model.predict()
-# plot a sample
-prediction.plot(model.df_wide_numeric,
-                series=model.df_wide_numeric.columns[0],
-                start_date="2019-01-01")
+
+# Plot sample prediction
+prediction.plot(model.df_wide_numeric, series=model.df_wide_numeric.columns[0])
+
 # Print the details of the best model
 print(model)
 
-# point forecasts dataframe
+# Retrieve forecasts and their upper/lower bounds
 forecasts_df = prediction.forecast
-# upper and lower forecasts
 forecasts_up, forecasts_low = prediction.upper_forecast, prediction.lower_forecast
 
-# accuracy of all tried model results
+# Get accuracy results
 model_results = model.results()
-# and aggregated from cross validation
 validation_results = model.results("validation")

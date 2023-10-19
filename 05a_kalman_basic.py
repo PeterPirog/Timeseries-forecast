@@ -25,7 +25,7 @@ def kalman_filter_temperature(data):
 
     return filtered_state_means, kf
 
-filename = './dataset/jena_climate_2009_2016.csv'
+filename = 'tools/jena_climate_2009_2016.csv'
 hourly_data = resample_data(filename, frequency='1H')
 
 hourly_data['T (degC)'] = hourly_data['T (degC)'].interpolate()

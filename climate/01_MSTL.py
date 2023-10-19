@@ -6,7 +6,7 @@ from tools import TimeSeriesAnalysis
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    analysis = TimeSeriesAnalysis('../dataset/jena_climate_2009_2016.csv')
+    analysis = TimeSeriesAnalysis('../tools/jena_climate_2009_2016.csv')
     df = analysis.resample_data(frequency='1H')
 
     # Przycinanie do pierwszych 1000 wierszy

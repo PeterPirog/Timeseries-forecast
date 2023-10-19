@@ -31,7 +31,7 @@ def kalman_filter_multivariate(data):
 
     return filtered_state_means
 
-filename = './dataset/jena_climate_2009_2016.csv'
+filename = 'tools/jena_climate_2009_2016.csv'
 hourly_data = resample_data(filename, frequency='1H')
 hourly_data = hourly_data.interpolate()
 

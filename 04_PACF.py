@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import MSTL
 from statsmodels.graphics.tsaplots import plot_pacf
-from tools import TimeSeriesAnalysis
+from tools import ClimateTimeSeries
 
 if __name__ == "__main__":
-    analysis = TimeSeriesAnalysis('./dataset/jena_climate_2009_2016.csv')
+    analysis = ClimateTimeSeries('tools/jena_climate_2009_2016.csv')
     df = analysis.resample_data(frequency='1H')
 
     # Przycinanie do pierwszych 20000 wierszy

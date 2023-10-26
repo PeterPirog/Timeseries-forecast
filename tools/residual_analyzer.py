@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 import pandas as pd
 from scipy import stats
 from scipy.stats import binomtest
@@ -99,84 +100,122 @@ class ResidualAnalysis:
             "Result": result_string
         }
 
-    def test_randomwalk(self, Y=None):
-        if Y is None:
-            Y = self.residuals
-
-        def create_sequence(Y):
-            return [1 if Y[i + 1] > Y[i] else 0 for i in range(len(Y) - 1)]
-
-        sequence = create_sequence(Y)
-
-        counts = {
-            (0, 0): 0,
-            (0, 1): 0,
-            (1, 0): 0,
-            (1, 1): 0
-        }
-
-        for i in range(len(sequence) - 1):
-            counts[(sequence[i], sequence[i + 1])] += 1
-
-        p_values = [binomtest(counts[key], counts[key] + counts[(key[0], 1 - key[1])], 0.5).pvalue for key in counts]
-        worst_p_value = min(p_values)  # znajdowanie najgorszej wartości p
-
-        result = "Reject H0: Not a random walk" if worst_p_value < self.alpha else "Cannot reject H0: Possibly a random walk"
-
-        return {
-            "Counts": counts,
-            "Worst p-value": worst_p_value,  # zwracanie najgorszej wartości p
-            "Result": result
-        }
-
-    def loss_function(self, alpha=0.05, weights=None):
-        """
-        Calculate a loss value based on the p-values from residual diagnostics.
-
-        :param alpha: Significance level (default=0.05).
-        :param weights: List of weights to give more or less importance to specific tests.
-        :return: Total loss value, where lower values indicate better fitting models.
-        """
+    def loss_function_old(self, alpha=0.05, weights=None):
         residual_results = {
             'Mean of residuals': self.test_mean_residuals(),
             'LM Statistic': self.test_residuals_variance(),
             'JB Statistic': self.test_normality_jarque_bera(),
             'LB Statistic for max lag': self.test_residual_autocorrelation(lags=2),
             'Worst Variable': self.test_residual_independence_with_spearman(),
-            'Counts': self.test_randomwalk()
         }
 
-        # List of p-values from the results
         p_values = [
             residual_results['Mean of residuals']['p-value'],
             residual_results['LM Statistic']['LM p-value'],
             residual_results['JB Statistic']['p-value'],
             residual_results['LB Statistic for max lag']['Worst p-value'],
             residual_results["Worst Variable"]['p-value'],
-            residual_results["Counts"]['Worst p-value']
         ]
 
-        # Default weights for tests (all have the same weight if none are provided)
         if weights is None:
             weights = [1] * len(p_values)
 
-        # Calculate the loss function as the sum of (alpha - p_value)^2 for p_value < alpha.
-        # If p_value > alpha, it's considered 0.
         loss_values = [((alpha - p) ** 2) * w if p < alpha else 0 for p, w in zip(p_values, weights)]
 
         total_loss = sum(loss_values)
 
         return total_loss
 
+    def loss_function(self, alpha=0.05, weights=None):
+        residual_results = {
+            'Mean of residuals': self.test_mean_residuals(),
+            'LM Statistic': self.test_residuals_variance(),
+            'JB Statistic': self.test_normality_jarque_bera(),
+            'LB Statistic for max lag': self.test_residual_autocorrelation(lags=2),
+            'Worst Variable': self.test_residual_independence_with_spearman(),
+        }
+
+        p_values = [
+            residual_results['Mean of residuals']['p-value'],
+            residual_results['LM Statistic']['LM p-value'],
+            residual_results['JB Statistic']['p-value'],
+            residual_results['LB Statistic for max lag']['Worst p-value'],
+            residual_results["Worst Variable"]['p-value'],
+        ]
+
+        if weights is None:
+            weights = [1] * len(p_values)
+
+        # Modified loss function
+        def compute_loss(p, alpha=0.05, w=1):
+            m1 = (1 - 100) / (alpha - 0)
+            c1 = 100
+
+            m2 = (0 - 1) / (1 - alpha)
+            c2 = 1 - m2 * alpha
+
+            if p <= alpha:
+                return w * (m1 * p + c1)
+            else:
+                return w * (m2 * p + c2)
+
+        loss_values = [compute_loss(p, alpha, w) for p, w in zip(p_values, weights)]
+        total_loss = sum(loss_values)
+
+        return total_loss
+
     def make_tests(self):
-        print("Test Mean of Residuals:")
-        print(self.test_mean_residuals())
-        print("\nTest Residuals Variance:")
-        print(self.test_residuals_variance())
-        print("\nTest Normality (Jarque-Bera):")
-        print(self.test_normality_jarque_bera())
-        print("\nTest Residual Autocorrelation:")
-        print(self.test_residual_autocorrelation(lags=self.lags))
+        results = {}
+
+        results["Test Mean of Residuals"] = self.test_mean_residuals()
+        results["Test Residuals Variance"] = self.test_residuals_variance()
+        results["Test Normality (Jarque-Bera)"] = self.test_normality_jarque_bera()
+        results["Test Residual Autocorrelation"] = self.test_residual_autocorrelation(lags=self.lags)
+        results["Test Residual Independence with Spearman"] = self.test_residual_independence_with_spearman()
+
+        details_keys = {
+            "Test Mean of Residuals": "Mean of residuals",
+            "Test Residuals Variance": "LM Statistic",
+            "Test Normality (Jarque-Bera)": "Skewness, Kurtosis",
+            "Test Residual Autocorrelation": "LB Statistic for max lag",
+            "Test Residual Independence with Spearman": "Spearman's rho",
+        }
+
+        p_value_keys = {
+            "Test Mean of Residuals": "p-value",
+            "Test Residuals Variance": "LM p-value",
+            "Test Normality (Jarque-Bera)": "p-value",
+            "Test Residual Autocorrelation": "Worst p-value",
+            "Test Residual Independence with Spearman": "p-value",
+        }
+
+        # Drawing the table
+        header = "| {:<40} | {:<15} | {:<25} | {:<30} |".format("Test Name", "p-value", "Result", "Details")
+        separator = "+" + "-" * 42 + "+" + "-" * 17 + "+" + "-" * 27 + "+" + "-" * 32 + "+"
+
+        print(separator)
+        print(header)
+        print(separator)
+
+        for test, value in results.items():
+            p_value_key = p_value_keys[test]
+            p_value = value[p_value_key]
+            if p_value < self.alpha:
+                result_text = "Reject H0"
+            else:
+                result_text = "Cannot reject H0"
+
+            details_key = details_keys[test]
+            if ',' in details_key:
+                keys = details_key.split(', ')
+                details_text = ', '.join([f"{k}: {value[k]:.2f}" for k in keys])
+            else:
+                details_text = f"{details_key}: {value[details_key]:.2f}"
+
+            print("| {:<40} | {:<15.5f} | {:<25} | {:<30} |".format(test, p_value, result_text, details_text))
+            print(separator)
+
+        # Drawing PACF for residuals
         plot_pacf(
             self.residuals,
             lags=self.lags,
@@ -187,21 +226,46 @@ class ResidualAnalysis:
             zero=False
         )
         plt.show()
-        print("\nTest Residual Independence with Spearman:")
-        print(self.test_residual_independence_with_spearman())
-        print("\nTest Random Walk:")
-        print(self.test_randomwalk())
-        print("\nLoss Function:")
+
+        # Print the loss function value
         loss_val = self.loss_function()
-        print(f"Loss Function Value: {loss_val}")
+        print(f"\nLoss Function Value: {loss_val}")
+
+def return_dataframe(N=1000, r=0.7, random_walk=True):
+    # Generowanie danych dla x1 i x2
+    mean = [0, 0]
+    cov = [[1, r], [r, 1]]  # współczynnik korelacji r
+    x1, x2 = np.random.multivariate_normal(mean, cov, N).T
+
+    # Tworzenie randomwalk lub szumu białego dla resid
+    if random_walk:
+        resid = np.cumsum(np.random.normal(0, 1, N))
+    else:
+        resid = np.random.normal(0, 1, N)
+
+    df = pd.DataFrame({
+        'resid': resid,
+        'x1': x1,
+        'x2': x2
+    })
+
+    return df
+
+
+# Przykładowe użycie:
+df = return_dataframe()
 
 if __name__ == "__main__":
+    """
     df = pd.DataFrame({
         'resid': [1.2, 0.5, -0.5, -1.2, 0.3, 0.4, -0.2],
         'x1': [2, 3, 1, 5, 4, 2, 3],
         'x2': [5, 6, 5, 7, 6, 5, 6]
     })
+    """
+    df=return_dataframe(N=1000, r=0.7,random_walk=False)
+
 
     res = ResidualAnalysis(df['resid'], exog_vars=df[['x1', 'x2']],alpha=0.05,lags=2)
     res.make_tests()
-    print(res.loss_function())
+
